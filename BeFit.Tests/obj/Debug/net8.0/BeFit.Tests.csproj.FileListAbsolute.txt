@@ -364,3 +364,4 @@ C:\Users\Lukas\Desktop\BeFit\BeFit.Tests\obj\Debug\net8.0\refint\BeFit.Tests.dll
 C:\Users\Lukas\Desktop\BeFit\BeFit.Tests\obj\Debug\net8.0\BeFit.Tests.pdb
 C:\Users\Lukas\Desktop\BeFit\BeFit.Tests\obj\Debug\net8.0\BeFit.Tests.genruntimeconfig.cache
 C:\Users\Lukas\Desktop\BeFit\BeFit.Tests\obj\Debug\net8.0\ref\BeFit.Tests.dll
+C:\Users\Lukas\Desktop\BeFit\BeFit.Tests\obj\Debug\net8.0\BeFit.Tests.sourcelink.json

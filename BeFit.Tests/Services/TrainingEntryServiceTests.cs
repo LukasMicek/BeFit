@@ -150,15 +150,115 @@ public class TrainingEntryServiceTests : IDisposable
         var result = await service.CreateAsync(dto, userId);
 
         // Assert
-        Assert.Equal(userId, result.UserId);
-        Assert.Equal(120, result.Weight);
-        Assert.Equal(4, result.Sets);
-        Assert.Equal(8, result.Repetitions);
+        Assert.True(result.Success);
+        Assert.NotNull(result.Entry);
+        Assert.Equal(userId, result.Entry.UserId);
+        Assert.Equal(120, result.Entry.Weight);
+        Assert.Equal(4, result.Entry.Sets);
+        Assert.Equal(8, result.Entry.Repetitions);
         Assert.Equal(1, await _context.TrainingEntries.CountAsync());
     }
 
     [Fact]
-    public async Task UpdateAsync_ReturnsTrue_AndUpdatesEntry()
+    public async Task CreateAsync_Fails_WhenSessionOwnedByOtherUser()
+    {
+        // Arrange
+        var service = new TrainingEntryService(_context);
+        var userId = "user-1";
+        var otherUserId = "user-2";
+
+        _context.ExerciseTypes.Add(new ExerciseType { Id = 1, Name = "Bench Press" });
+        _context.TrainingSessions.Add(new TrainingSession
+        {
+            Id = 1,
+            UserId = otherUserId,
+            StartTime = DateTime.Now,
+            EndTime = DateTime.Now.AddHours(1)
+        });
+        await _context.SaveChangesAsync();
+
+        var dto = new TrainingEntryCreateDto
+        {
+            TrainingSessionId = 1,
+            ExerciseTypeId = 1,
+            Weight = 100,
+            Sets = 3,
+            Repetitions = 10
+        };
+
+        // Act
+        var result = await service.CreateAsync(dto, userId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(EntryError.SessionNotOwned, result.Error);
+        Assert.Equal(0, await _context.TrainingEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateAsync_Fails_WhenExerciseTypeNotFound()
+    {
+        // Arrange
+        var service = new TrainingEntryService(_context);
+        var userId = "user-1";
+
+        _context.TrainingSessions.Add(new TrainingSession
+        {
+            Id = 1,
+            UserId = userId,
+            StartTime = DateTime.Now,
+            EndTime = DateTime.Now.AddHours(1)
+        });
+        await _context.SaveChangesAsync();
+
+        var dto = new TrainingEntryCreateDto
+        {
+            TrainingSessionId = 1,
+            ExerciseTypeId = 999, // non-existent
+            Weight = 100,
+            Sets = 3,
+            Repetitions = 10
+        };
+
+        // Act
+        var result = await service.CreateAsync(dto, userId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(EntryError.ExerciseTypeNotFound, result.Error);
+        Assert.Equal(0, await _context.TrainingEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateAsync_Fails_WhenSessionNotFound()
+    {
+        // Arrange
+        var service = new TrainingEntryService(_context);
+        var userId = "user-1";
+
+        _context.ExerciseTypes.Add(new ExerciseType { Id = 1, Name = "Bench Press" });
+        await _context.SaveChangesAsync();
+
+        var dto = new TrainingEntryCreateDto
+        {
+            TrainingSessionId = 999, // non-existent
+            ExerciseTypeId = 1,
+            Weight = 100,
+            Sets = 3,
+            Repetitions = 10
+        };
+
+        // Act
+        var result = await service.CreateAsync(dto, userId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(EntryError.SessionNotFound, result.Error);
+        Assert.Equal(0, await _context.TrainingEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ReturnsSuccess_AndUpdatesEntry()
     {
         // Arrange
         var service = new TrainingEntryService(_context);
@@ -182,7 +282,7 @@ public class TrainingEntryServiceTests : IDisposable
         var result = await service.UpdateAsync(entry.Id, dto, userId);
 
         // Assert
-        Assert.True(result);
+        Assert.True(result.Success);
         var updated = await _context.TrainingEntries.FindAsync(entry.Id);
         Assert.Equal(120, updated!.Weight);
         Assert.Equal(4, updated.Sets);
@@ -190,7 +290,7 @@ public class TrainingEntryServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateAsync_ReturnsFalse_WhenEntryNotFound()
+    public async Task UpdateAsync_Fails_WhenEntryNotFound()
     {
         // Arrange
         var service = new TrainingEntryService(_context);
@@ -208,11 +308,12 @@ public class TrainingEntryServiceTests : IDisposable
         var result = await service.UpdateAsync(999, dto, "user-1");
 
         // Assert
-        Assert.False(result);
+        Assert.False(result.Success);
+        Assert.Equal(EntryError.EntryNotFound, result.Error);
     }
 
     [Fact]
-    public async Task UpdateAsync_ReturnsFalse_WhenEntryBelongsToDifferentUser()
+    public async Task UpdateAsync_Fails_WhenEntryBelongsToDifferentUser()
     {
         // Arrange
         var service = new TrainingEntryService(_context);
@@ -236,7 +337,75 @@ public class TrainingEntryServiceTests : IDisposable
         var result = await service.UpdateAsync(entry.Id, dto, "user-2");
 
         // Assert
-        Assert.False(result);
+        Assert.False(result.Success);
+        Assert.Equal(EntryError.EntryNotFound, result.Error);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Fails_WhenTryingToSetSessionOwnedByOtherUser()
+    {
+        // Arrange
+        var service = new TrainingEntryService(_context);
+        var userId = "user-1";
+        var otherUserId = "user-2";
+
+        await SeedTestData(userId);
+        _context.TrainingSessions.Add(new TrainingSession
+        {
+            Id = 2,
+            UserId = otherUserId,
+            StartTime = DateTime.Now,
+            EndTime = DateTime.Now.AddHours(1)
+        });
+
+        var entry = new TrainingEntry { UserId = userId, TrainingSessionId = 1, ExerciseTypeId = 1, Weight = 100, Sets = 3, Repetitions = 10 };
+        _context.TrainingEntries.Add(entry);
+        await _context.SaveChangesAsync();
+
+        var dto = new TrainingEntryCreateDto
+        {
+            TrainingSessionId = 2, // belongs to other user
+            ExerciseTypeId = 1,
+            Weight = 120,
+            Sets = 4,
+            Repetitions = 6
+        };
+
+        // Act
+        var result = await service.UpdateAsync(entry.Id, dto, userId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(EntryError.SessionNotOwned, result.Error);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Fails_WhenExerciseTypeNotFound()
+    {
+        // Arrange
+        var service = new TrainingEntryService(_context);
+        var userId = "user-1";
+
+        await SeedTestData(userId);
+        var entry = new TrainingEntry { UserId = userId, TrainingSessionId = 1, ExerciseTypeId = 1, Weight = 100, Sets = 3, Repetitions = 10 };
+        _context.TrainingEntries.Add(entry);
+        await _context.SaveChangesAsync();
+
+        var dto = new TrainingEntryCreateDto
+        {
+            TrainingSessionId = 1,
+            ExerciseTypeId = 999, // non-existent
+            Weight = 120,
+            Sets = 4,
+            Repetitions = 6
+        };
+
+        // Act
+        var result = await service.UpdateAsync(entry.Id, dto, userId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(EntryError.ExerciseTypeNotFound, result.Error);
     }
 
     [Fact]

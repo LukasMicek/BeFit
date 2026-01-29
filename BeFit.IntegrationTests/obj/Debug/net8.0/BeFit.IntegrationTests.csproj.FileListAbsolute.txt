@@ -684,3 +684,4 @@ C:\Users\Lukas\Desktop\BeFit\BeFit.IntegrationTests\obj\Debug\net8.0\refint\BeFi
 C:\Users\Lukas\Desktop\BeFit\BeFit.IntegrationTests\obj\Debug\net8.0\BeFit.IntegrationTests.pdb
 C:\Users\Lukas\Desktop\BeFit\BeFit.IntegrationTests\obj\Debug\net8.0\BeFit.IntegrationTests.genruntimeconfig.cache
 C:\Users\Lukas\Desktop\BeFit\BeFit.IntegrationTests\obj\Debug\net8.0\ref\BeFit.IntegrationTests.dll
+C:\Users\Lukas\Desktop\BeFit\BeFit.IntegrationTests\obj\Debug\net8.0\BeFit.IntegrationTests.sourcelink.json
